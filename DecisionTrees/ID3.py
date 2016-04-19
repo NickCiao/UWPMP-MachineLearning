@@ -57,12 +57,22 @@ def _id3(examples, attributeDict, attributeNames):
 # Given a set of observations and attributes, find
 # the "best" attribute to split on.
 def _chooseBestAttribute(examples, attributes):
-	'''
-		ChooseBestAttribute(Examples, Attributes)
-		Calculate the Entropy of Examples.
-		For every attribute, calculate the Information gain.
-		return the attribute with the largest information gain.
-	'''
+	
+	bestIG = 0
+	splitCandidate = None
+
+	for a in attributes
+		
+		infoGain = _calculateInformationGain(examples, a) 
+		
+		if  infoGain > bestIG:
+			bestIG = infoGain
+			splitCandidate = a
+
+	return a
+
+
+def _calculateInformationGain(examples, attribute):
 	pass
 
 # Calculates the entropy for a given set of observations.
