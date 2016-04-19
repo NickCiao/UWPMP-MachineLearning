@@ -1,5 +1,8 @@
 import pandas
 import collections
+import numpy
+import math
+
 #
 def train(examples):
 	attributeDict = collections.OrderedDict(examples['attributes'])
@@ -44,7 +47,7 @@ def _id3(examples, attributeDict, attributeNames):
 	for value in attributeDict[attribute]:
 		exampleSubset = examples[examples[attribute] == value]
 		if len(exampleSubset) == 0:
-			mostFrequentClass = _getMostFrequentClass(examples)
+			mostFrequentClass = examples['Class'].value_counts().idxmax()
 			root.branches[value] = Node(label = mostFrequentClass)
 		else:
 			root.branches[value] = _id3(
@@ -57,14 +60,12 @@ def _id3(examples, attributeDict, attributeNames):
 # Given a set of observations and attributes, find
 # the "best" attribute to split on.
 def _chooseBestAttribute(examples, attributes):
-	
 	bestIG = 0
 	splitCandidate = None
 
 	for a in attributes
-		
-		infoGain = _calculateInformationGain(examples, a) 
-		
+		infoGain = _calculateInformationGain(examples, a)
+
 		if  infoGain > bestIG:
 			bestIG = infoGain
 			splitCandidate = a
@@ -73,23 +74,28 @@ def _chooseBestAttribute(examples, attributes):
 
 
 def _calculateInformationGain(examples, attribute):
-	pass
+	pV = examples[attribute].value_counts(normalize=True)
+	setEntropy = _calculateEntropy(examples)
+	weightedSubsetEntropy = 0
+
+	for v in pV:
+		subset = examples[examples[attribute] == v]
+		weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
+
+	return setEntropy - weightedSubsetEntropy
+
 
 # Calculates the entropy for a given set of observations.
 def _calculateEntropy(examples):
-	pass
+	pV = examples.Class.value_counts(normalize=True)
+	result = 0
 
-# Gets the most frequently occurring class in examples
-def _getMostFrequentClass(examples):
-	counts = examples['Class'].value_counts()
-	val = 0
-	result = None
+	for v in pV.keys():
+		pv = pV[v]
+		result += pv * math.log(pv, 2)
 
-	for category in counts.keys():
-		if counts[category] > val:
-			result = category
+	return -result
 
-	return result
 
 class DecisionTree(object):
 
