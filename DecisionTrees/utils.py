@@ -28,3 +28,9 @@ def convertArffToDataFrame(arffObject):
 		columns = attributeNames)
 
 	return df
+
+# from scipy.io import arff
+# arff_train = arff.loadarff('training_subsetD.arff')
+
+# arff_train[0] # has data in Numpy NDarray
+# arff_train[1] # has metadata

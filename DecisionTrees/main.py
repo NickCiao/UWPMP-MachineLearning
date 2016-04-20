@@ -12,11 +12,11 @@ rawTrainD = open("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning/Decisi
 decisionTree = train(arff.load(rawTrainD))
 
 # Open the file containing the test data
-rawTestD = open("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning/DecisionTrees"
-	"/Data/testingD.arff")
+#rawTestD = open("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning/DecisionTrees"
+#	"/Data/testingD.arff")
 
 # Predict the testData
-decisionTree.predict(arff.load(rawTestD))
+#decisionTree.predict(arff.load(rawTestD))
 
 #if __name__ == "__main__":
     #do stuff
