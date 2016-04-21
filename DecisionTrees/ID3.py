@@ -33,9 +33,9 @@ def _id3(examples, attributeDict, attributeNames):
         # If the current example
         if len(examples[examples['Class'] == category]) == numRows:
             root.label = category
-            print(len(attributeNames), "term1")
             return root
 
+    print(len(attributeNames))
     # Select the best attribute to split on.
     attribute = _chooseBestAttribute(examples, attributeNames)
 
@@ -50,7 +50,6 @@ def _id3(examples, attributeDict, attributeNames):
         root.attribute = attribute
     else:
         root.label = mostFrequentClass
-        print(len(attributeNames), "term2")
         return root
 
     # Create a shallow copy of the attributeNames list, then
@@ -60,7 +59,7 @@ def _id3(examples, attributeDict, attributeNames):
 
     for value in examples[attribute].unique():
         exampleSubset = examples[examples[attribute] == value]
-        print(len(attributeNames), attribute, value, len(exampleSubset))
+        # print(len(attributeNames), attribute, value, len(exampleSubset))
 
         if len(exampleSubset) == 0:
             root.branches[value] = Node(label=mostFrequentClass)
@@ -70,7 +69,6 @@ def _id3(examples, attributeDict, attributeNames):
               attributeDict,
               reducedAttributeSet)
 
-    print(len(attributeNames), "term3")
     return root
 
 
@@ -100,7 +98,8 @@ def _chiSquareHelper(examples, attribute, cutoff):
 
 
 def _calculateInformationGain(examples, attribute, setEntropy):
-    pV = examples[attribute].value_counts(normalize=True)
+    pV = examples[attribute].value_counts(normalize=True, dropna=False)
+
     weightedSubsetEntropy = 0
     for v in pV.keys():
         subset = examples[examples[attribute] == v]
@@ -111,7 +110,7 @@ def _calculateInformationGain(examples, attribute, setEntropy):
 
 # Calculates the entropy for a given set of observations.
 def _calculateEntropy(examples):
-    pV = examples.Class.value_counts(normalize=True)
+    pV = examples.Class.value_counts(normalize=True, dropna=False)
     result = 0
 
     for v in pV.keys():
@@ -139,7 +138,7 @@ class DecisionTree(object):
         # Add a new column to the testData.
         testData['PredictedClass'] = pandas.Series(None, index=testData.index)
 
-        for i in range(0, len(testData) - 1):
+        for i in range(0, len(testData)):
             example = testData.iloc[[i]]
             predictedClass = self._classify(example, self.rootNode, i)
             testData.set_value(i, 'PredictedClass', predictedClass)
@@ -148,7 +147,9 @@ class DecisionTree(object):
             testData[testData['Class'] == testData['PredictedClass']])
         totalRows = len(testData)
 
-        accuracy = correctCount / totalRows
+        print(testData[testData.Class == testData.PredictedClass])
+        print(testData.Class.dtype, testData.PredictedClass.dtype)
+        accuracy = float(correctCount) / float(totalRows)
         print("Accuracy: ", accuracy)
 
     def _classify(self, example, root, i):
