@@ -4,158 +4,165 @@ import numpy
 import math
 from scipy.stats import chisquare
 
-#
-def train(examples):
-	attributeDict = collections.OrderedDict(examples['attributes'])
-	attributeNames = list(attributeDict.keys())
 
-	# Put the examples into a pandas DataFrame
-	df = pandas.DataFrame(
-		numpy.array(examples['data']),
-		columns = attributeNames)
+def train(arffData):
+    attributeDict = collections.OrderedDict(arffData['attributes'])
+    attributeNames = list(attributeDict.keys())
 
-	# Remove the Class attribute before calling ID3
-	attributeNames.remove('Class')
+    # Put the arffData into a pandas DataFrame
+    df = pandas.DataFrame(
+        numpy.array(arffData['data']),
+        columns=attributeNames)
 
-	# Train!
-	return DecisionTree(_id3(df, attributeDict, attributeNames))
+    # Remove the Class attribute before calling ID3
+    attributeNames.remove('Class')
+
+    # Train!
+    return DecisionTree(_id3(df, attributeDict, attributeNames))
 
 
 # ID3 implementation.  Returns a decision tree object.
 def _id3(examples, attributeDict, attributeNames):
+    # Create a root node for the tree
+    root = Node()
+    numRows = len(examples)
 
-	print(len(attributeNames))
+    # If all our training examples fall under one
+    # category, then this is a leaf node and we're done.
+    for category in attributeDict['Class']:
+        # If the current example
+        if len(examples[examples['Class'] == category]) == numRows:
+            root.label = category
+            print(len(attributeNames), "term1")
+            return root
 
-	# Create a root node for the tree
-	root = Node()
-	numRows = len(examples)
+    # Select the best attribute to split on.
+    attribute = _chooseBestAttribute(examples, attributeNames)
 
-	# If all our training examples fall under one
-	# category, then this is a leaf node and we're done.
-	for category in attributeDict['Class']:
-		# If the current example
-		if len(examples[examples['Class'] == category]) == numRows:
-			root.label = category
-			return root
+    # Get the most frequently occurring class in examples
+    mostFrequentClass = examples['Class'].value_counts().idxmax()
 
-	# Select the best attribute to split on.
-	attribute = _chooseBestAttribute(examples, attributeNames)
+    # Perform the chi square test
+    isWorthBranching = _chiSquareHelper(examples, attribute, 0.95)
 
-	# Get the most frequently occurring class in examples
-	mostFrequentClass = examples['Class'].value_counts().idxmax()
+    # If it isn't worth branching.  Create a leaf.
+    if isWorthBranching:
+        root.attribute = attribute
+    else:
+        root.label = mostFrequentClass
+        print(len(attributeNames), "term2")
+        return root
 
-	# Perform the chi square test
-	isWorthBranching = _chiSquareHelper(examples, attribute, cutOff)
+    # Create a shallow copy of the attributeNames list, then
+    # remove the attribute we're currently splitting on.
+    reducedAttributeSet = list(attributeNames)
+    reducedAttributeSet.remove(attribute)
 
-	# If it isn't worth branching.  Create a leaf.
-	if isWorthBranching:
-		root.label = mostFrequentClass
-		return root
-	else:
-		root.attribute = attribute
+    for value in examples[attribute].unique():
+        exampleSubset = examples[examples[attribute] == value]
+        print(len(attributeNames), attribute, value, len(exampleSubset))
 
-	# Create a shallow copy of the attributeNames list, then
-	# remove the attribute we're currently splitting on.
-	reducedAttributeSet = list(attributeNames)
-	reducedAttributeSet.remove(attribute)
+        if len(exampleSubset) == 0:
+            root.branches[value] = Node(label=mostFrequentClass)
+        else:
+            root.branches[value] = _id3(
+              exampleSubset,
+              attributeDict,
+              reducedAttributeSet)
 
-	for value in attributeDict[attribute]:
-		exampleSubset = examples[examples[attribute] == value]
-		if len(exampleSubset) == 0:
-			root.branches[value] = Node(label = mostFrequentClass)
-		else:
-			root.branches[value] = _id3(
-				exampleSubset,
-				attributeDict,
-				reducedAttributeSet)
-	return root
+    print(len(attributeNames), "term3")
+    return root
 
 
 # Given a set of observations and attributes, find
 # the "best" attribute to split on.
 def _chooseBestAttribute(examples, attributeNames):
-	bestIG = 0
-	splitCandidate = None
+    bestIG = 0
+    splitCandidate = None
 
-	for a in attributeNames:
-		infoGain = _calculateInformationGain(examples, a)
+    for a in attributeNames:
+        setEntropy = _calculateEntropy(examples)
+        infoGain = _calculateInformationGain(examples, a, setEntropy)
 
-		if  infoGain > bestIG:
-			bestIG = infoGain
-			splitCandidate = a
+        if infoGain > bestIG:
+            bestIG = infoGain
+            splitCandidate = a
 
-	return a
+    return splitCandidate
 
 
 def _chiSquareHelper(examples, attribute, cutoff):
-	# List of possible attribute values
-	V = examples[attribute].unique()
+    # List of possible attribute values
+    V = examples[attribute].unique()
 
-	# Create two lists:
-	for v in V:
-		p_prime =
+    # Create two lists:
+    return True
 
 
-def _calculateInformationGain(examples, attribute):
-	pV = examples[attribute].value_counts(normalize=True)
-	setEntropy = _calculateEntropy(examples)
-	weightedSubsetEntropy = 0
+def _calculateInformationGain(examples, attribute, setEntropy):
+    pV = examples[attribute].value_counts(normalize=True)
+    weightedSubsetEntropy = 0
+    for v in pV.keys():
+        subset = examples[examples[attribute] == v]
+        weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
 
-	for v in pV.keys():
-		subset = examples[examples[attribute] == v]
-		weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
-
-	return setEntropy - weightedSubsetEntropy
+    return setEntropy - weightedSubsetEntropy
 
 
 # Calculates the entropy for a given set of observations.
 def _calculateEntropy(examples):
-	pV = examples.Class.value_counts(normalize=True)
-	result = 0
+    pV = examples.Class.value_counts(normalize=True)
+    result = 0
 
-	for v in pV.keys():
-		pv = pV[v]
-		result += pv * math.log(pv, 2)
+    for v in pV.keys():
+        pv = pV[v]
+        result += -(pv * math.log(pv, 2))
 
-	return -result
+    return result
 
 
 class DecisionTree(object):
 
-	def __init__(self, node):
-		self.rootNode = node
+    def __init__(self, node):
+        self.rootNode = node
 
+    # Outputs results
+    def predict(self, testData):
+        attributeDict = collections.OrderedDict(testData['attributes'])
+        attributeNames = list(attributeDict.keys())
 
-	# Outputs results
-	def predict(self, testData):
-		# Add a new column to the testData.
-		testData['PredictedClass'] = pandas.Series(None, index=testData.index)
+        # Put the arffData into a pandas DataFrame
+        testData = pandas.DataFrame(
+            numpy.array(testData['data']),
+            columns=attributeNames)
 
-		for i in len(testData) - 1:
-			example = testData.iloc[[i]]
-			predictedClass = _classify(example, self.rootNode)
-			testData.set_value(i, 'PredictedClass', predictedClass)
+        # Add a new column to the testData.
+        testData['PredictedClass'] = pandas.Series(None, index=testData.index)
 
-		correctCount = \
-			len(testData[testData['Class'] == testData['PredictedClass']])
-		totalRows = len(testData)
+        for i in range(0, len(testData) - 1):
+            example = testData.iloc[[i]]
+            predictedClass = self._classify(example, self.rootNode, i)
+            testData.set_value(i, 'PredictedClass', predictedClass)
 
-		accuracy = correctCount / totalRows
-		print("Accuracy: " + str(accuracy))
+        correctCount = len(
+            testData[testData['Class'] == testData['PredictedClass']])
+        totalRows = len(testData)
 
+        accuracy = correctCount / totalRows
+        print("Accuracy: ", accuracy)
 
-	def _classify(example, root):
-		# Base case
-		if root.attribute == None:
-			return rootNode.label
-		else:
-			splitAttribute = root.attribute
-			return _blargh(example, root.branches[splitAttribute])
+    def _classify(self, example, root, i):
+        # Base case
+        if root.attribute is None:
+            return root.label
+        else:
+            val = example[root.attribute][i]
+            return self._classify(example, root.branches[val], i)
+
 
 class Node(object):
 
-	def __init__(self, attribute = None, label = None):
-		self.attribute = attribute
-		self.label = label
-		self.branches = dict()
-
+    def __init__(self, attribute=None, label=None):
+        self.attribute = attribute
+        self.label = label
+        self.branches = dict()
