@@ -9,10 +9,6 @@ rawTrainD = open(
     "C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
     "/DecisionTrees/Data/training_subsetD.arff")
 
-# rawTrainD = open("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning
-# /DecisionTrees"
-# "/Data/training_subsetD.arff")
-
 # Learn a decision tree using training data.
 decisionTree = train(arff.load(rawTrainD))
 

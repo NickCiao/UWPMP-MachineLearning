@@ -2,7 +2,8 @@ import pandas
 import collections
 import numpy
 import math
-from scipy.stats import chisquare
+import sys
+from scipy import stats
 
 
 def train(arffData):
@@ -43,7 +44,7 @@ def _id3(examples, attributeNames):
     mostFrequentClass = examples['Class'].value_counts().idxmax()
 
     # Perform the chi square test
-    isWorthBranching = _chiSquareHelper(examples, attribute, 0.95)
+    isWorthBranching = _chiSquareHelper(examples, attribute, 0.1)
 
     # If it isn't worth branching.  Create a leaf.
     if isWorthBranching:
@@ -88,11 +89,24 @@ def _chooseBestAttribute(examples, attributeNames):
 
 
 def _chiSquareHelper(examples, attribute, cutoff):
-    # List of possible attribute values
     V = examples[attribute].unique()
 
-    # Create two lists:
-    return True
+    testStatistic = 0
+    p = len(examples[examples['Class'] == "True"])
+    n = len(examples[examples['Class'] == "False"])
+    dof = 0
+    for v in V:
+        if v is not numpy.NaN and v is not None:
+            dof += 1
+            subset = examples[examples[attribute] == v]
+            p_i = len(subset[subset['Class'] == "True"])
+            n_i = len(subset[subset['Class'] == "False"])
+            pprime = p*((p_i+n_i)/(p+n))
+            nprime = n*((p_i+n_i)/(p+n))
+            testStatistic += (math.pow(p_i - pprime, 2)/pprime) + (math.pow(n_i - nprime, 2)/nprime)
+
+    pValue = 1 - stats.chi2.cdf(testStatistic, dof)
+    return pValue <= cutoff
 
 
 def _calculateInformationGain(examples, attribute, setEntropy):
@@ -102,7 +116,6 @@ def _calculateInformationGain(examples, attribute, setEntropy):
     for v in pV.keys():
         if v is not numpy.NaN:
             subset = examples[examples[attribute] == v]
-            print(subset)
             weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
 
     return setEntropy - weightedSubsetEntropy
