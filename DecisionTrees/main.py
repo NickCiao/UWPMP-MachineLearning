@@ -7,7 +7,7 @@ from ID3 import *
 
 rawTrainD = open(
     "C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
-    "/DecisionTrees/Data/debug.arff")
+    "/DecisionTrees/Data/training_subsetD.arff")
 
 # rawTrainD = open("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning
 # /DecisionTrees"
@@ -19,7 +19,7 @@ decisionTree = train(arff.load(rawTrainD))
 # Open the file containing the test data
 rawTestD = open(
     "C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning/DecisionTrees"
-    "/Data/debugTest.arff")
+    "/Data/testingD.arff")
 
 # Predict the testData
 decisionTree.predict(arff.load(rawTestD))

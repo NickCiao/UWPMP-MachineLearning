@@ -18,18 +18,18 @@ def train(arffData):
     attributeNames.remove('Class')
 
     # Train!
-    return DecisionTree(_id3(df, attributeDict, attributeNames))
+    return DecisionTree(_id3(df, attributeNames))
 
 
 # ID3 implementation.  Returns a decision tree object.
-def _id3(examples, attributeDict, attributeNames):
+def _id3(examples, attributeNames):
     # Create a root node for the tree
     root = Node()
     numRows = len(examples)
 
     # If all our training examples fall under one
     # category, then this is a leaf node and we're done.
-    for category in attributeDict['Class']:
+    for category in examples['Class'].unique():
         # If the current example
         if len(examples[examples['Class'] == category]) == numRows:
             root.label = category
@@ -59,14 +59,12 @@ def _id3(examples, attributeDict, attributeNames):
 
     for value in examples[attribute].unique():
         exampleSubset = examples[examples[attribute] == value]
-        # print(len(attributeNames), attribute, value, len(exampleSubset))
 
         if len(exampleSubset) == 0:
             root.branches[value] = Node(label=mostFrequentClass)
         else:
             root.branches[value] = _id3(
               exampleSubset,
-              attributeDict,
               reducedAttributeSet)
 
     return root
@@ -102,8 +100,10 @@ def _calculateInformationGain(examples, attribute, setEntropy):
 
     weightedSubsetEntropy = 0
     for v in pV.keys():
-        subset = examples[examples[attribute] == v]
-        weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
+        if v is not numpy.NaN:
+            subset = examples[examples[attribute] == v]
+            print(subset)
+            weightedSubsetEntropy += pV[v] * _calculateEntropy(subset)
 
     return setEntropy - weightedSubsetEntropy
 
@@ -136,11 +136,12 @@ class DecisionTree(object):
             columns=attributeNames)
 
         # Add a new column to the testData.
-        testData['PredictedClass'] = pandas.Series(None, index=testData.index)
+        testData['PredictedClass'] = pandas.Series("", index=testData.index)
 
         for i in range(0, len(testData)):
             example = testData.iloc[[i]]
             predictedClass = self._classify(example, self.rootNode, i)
+
             testData.set_value(i, 'PredictedClass', predictedClass)
 
         correctCount = len(
@@ -148,8 +149,8 @@ class DecisionTree(object):
         totalRows = len(testData)
 
         print(testData[testData.Class == testData.PredictedClass])
-        print(testData.Class.dtype, testData.PredictedClass.dtype)
         accuracy = float(correctCount) / float(totalRows)
+        #print(testData)
         print("Accuracy: ", accuracy)
 
     def _classify(self, example, root, i):
