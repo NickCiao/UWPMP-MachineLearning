@@ -1,3 +1,8 @@
 DecisionTrees/Data/testingD.arff
 DecisionTrees/Data/training_subsetD.arff
 *.pyc
+*.txt
+.spyderworkspace
+*.spyderproject
+DecisionTrees/__pycache__/ID3.cpython-35.pyc
+DecisionTrees/__pycache__/ID3.cpython-35.pyc
