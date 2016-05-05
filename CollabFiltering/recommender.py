@@ -5,7 +5,7 @@ import math
 class Recommender(object):
 
     def __init__(self, trainingData):
-        self.trainingData = trainingData
+        self.trainData = trainingData
         self.testData = None
         self.avgVotes = None
 
@@ -14,17 +14,22 @@ class Recommender(object):
         self.testData = testData
 
         # Create a new column for testData to hold predicted values.
-        self.testData['predictedRating'] = self.testData['rating'].map(lambda x: x)
+        self.testData['predictedRating'] = self.testData['rating'].map(
+            lambda x: x)
 
         # Precompute everyone's average votes.
+        print("Starting precomputeAvgVotes...")
         self._precomputeAvgVotes()
+        print("Finished precomputeAvgVotes...")
 
-        # Iterate over each row in the test data, predict the rating for each row.
-        for i in range(0, len(testD)):
-            row = testD.iloc[[i]]
+        print("Prediction started...")
+        # Iterate over each row in the test data,
+        # predict the rating for each row.
+        for i in range(0, len(self.testData)):
+            row = self.testData.iloc[[i]]
 
             # Make the prediction
-            predictedVote = self._predictVote(row['userId'], row['movieId'])
+            predictedVote = self._predictVote(row['userId'][i], row['movieId'][i])
 
             # Set the value
             self.testData.set_value(i, 'predictedRating', predictedVote)
@@ -44,56 +49,57 @@ class Recommender(object):
         # Compute the average vote for the active user.
         Vbar_a = self.avgVotes[user]
 
-        nonZeroWeights = _computePearsonCoefficients(user)
-        k = _computeNormalizer(nonZeroWeights)
+        # Dataframe containing all votes for item
+        itemVotes = self.trainData[
+            (self.trainData['movieId'] == item) &
+            (self.trainData['userId'] != user)]
 
-        weightedNN = 0
-        for i in nonZeroWeights.keys():
-            V_ij = self._getVote(i, item)
-            weightedNN += nonZeroWeights[i] * (V_ij - self.avgVotes[i])
+        # Users who have voted on the current prediction item
+        usersWhoVotedForItem = itemVotes['userId'].unique()
 
-        return Vbar_a + k*weightedNN
+        nonZeroWeights = self._computePearsonCoefficients(
+            user,
+            usersWhoVotedForItem)
+
+        k = self._computeNormalizer(nonZeroWeights)
+
+        nonZeroWeights['rating_adjusted'] = nonZeroWeights.apply(
+            lambda row: self._getVote(row['userId'], item) - self.avgVotes[row['userId']],
+            axis=1)
+
+        summationTerm = (nonZeroWeights['r'] * nonZeroWeights['rating_adjusted']).sum()
+
+        return Vbar_a + (k * summationTerm)
 
 
-    # Returns a dictionary whose key consists of users against which
-    # userA has a nonzero pearson correlation coefficient.
-    # The value is the pearson correlation coefficient.
-    def _computePearsonCoefficients(self, userA):
-        # Grab every userId except for userA
-        allIds = self.trainData['userId'].unique()
-        otherUserIds = numpy.delete(allIds, numpy.where(allIds == userA))
+    # Returns a dataframe containing userIds and pearson correlation
+    # coefficients.  Non-zero values only.
+    def _computePearsonCoefficients(self, userA, usersWhoVotedForItem):
+        # Subset of training data consisting of user A's votes.
+        subsetA = self.trainData[self.trainData['userId'] == userA]
+        movies = subsetA['movieId'].unique()
 
-        # Dataframe slice for userA
-        userAData = self.trainData[self.trainData['userId'] == userA]
+        # All votes that overlap with userA's votes
+        overlappingVotes = self.trainData[
+            (self.trainData['movieId'].isin(movies)) &
+            (self.trainData['userId'] != userA)]
 
-        # Get active user's average vote
-        Vbar_a = self.avgVotes[userA]
+        similarUsers = overlappingVotes['userId'].unique()
 
-        # Compute Pearson Coefficients
-        for user in otherUserIds:
-            #Dataframe slice for userB
-            userBData = self.trainData[self.trainData['userId' == user]]
-            intersection = pandas.merge(
-                userAData, userBData, how='inner', on=['movieId'], suffixes=('_a', '_b'))
+        # The intersection between similarUsers and usersWhoVotedForItem
+        usersToCompare = numpy.intersect1d(usersWhoVotedForItem, similarUsers)
 
-            # add column that represents (V_aj - Vbar_a)
-            intersection['rating_adjusted_a']  = intersection['rating_a'].subtract(Vbar_a)
+        # Get rows associated with userIds in usersToCompare
+        workingSet = self.trainData[
+            self.trainData['userId'].isin(usersToCompare)]
 
-            # add column that represents (V_ij - Vbar_i)
-            Vbar_i = self.avgVotes[user]
-            intersection['rating_adjusted_b'] = intersection['rating_b'].subtract(Vbar_i)
 
-            intersection['numeratorProduct'] = intersection.apply(
-                lambda row: row['rating_adjusted_a'] * row['rating_adjusted_b'],
-                axis=1,
-                raw=True)
+        return workingSet
 
-            numerator = intersection['numeratorProduct'].sum()
-            denominator = math.sqrt(
-                (intersection['rating_adjusted_a']**2).sum() *
-                (intersection['rating_adjusted_b']**2).sum())
-
-            r =  numerator/denominator
+        # Users who have voted on the current prediction item
+        usersWhoVotedForItem = self.trainData[
+            (self.trainData['movieId'] == item) &
+            (self.trainData['userId'] != userA)]['userId'].unique()
 
 
     def _computeMAE(self):
@@ -105,7 +111,7 @@ class Recommender(object):
 
 
     def _computeNormalizer(self, nonZeroWeights):
-        pass
+        return 1/nonZeroWeights['r'].abs().sum()
 
 
     # Helper to get the vote for user i on item j.
@@ -115,11 +121,6 @@ class Recommender(object):
             (self.trainData['movieId'] == item_j)]['rating']
 
 
-    # Precomputes the average vote for every user in the
-    # training set and stores it as an instance variable.
+    # Precomputes the average vote for every user in the training set.
     def _precomputeAvgVotes(self):
-        distinctUserIds = self.trainData['userId'].unique()
-
-        for userId in distinctUserIds:
-            ratings = self.trainData[trainData['userId'] == userId]['rating']
-            self.avgVotes[userId] = ratings.sum()/len(ratings)
+        self.avgVotes = self.trainData.groupby('userId')['rating'].mean()
