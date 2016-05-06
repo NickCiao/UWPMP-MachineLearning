@@ -49,7 +49,7 @@ class Recommender(object):
         # Compute the average vote for the active user.
         Vbar_a = self.avgVotes[user]
 
-        # Dataframe containing all votes for item
+        # Get all the rows corresponding to votes for this item.
         itemVotes = self.trainData[
             (self.trainData['movieId'] == item) &
             (self.trainData['userId'] != user)]
@@ -63,11 +63,15 @@ class Recommender(object):
 
         k = self._computeNormalizer(nonZeroWeights)
 
-        nonZeroWeights['rating_adjusted'] = nonZeroWeights.apply(
-            lambda row: self._getVote(row['userId'], item) - self.avgVotes[row['userId']],
+        itemRatings = self.trainData[
+            (self.trainData['userId'].isin(nonZeroWeights.index.values)) &
+            (self.trainData['movieId'] == item)]
+
+        itemRatings['weightedAdjustedRating'] = itemRatings.apply(
+            lambda row: nonZeroWeights[row['userId']]*row['rating'] - self.avgVotes[row['userId']],
             axis=1)
 
-        summationTerm = (nonZeroWeights['r'] * nonZeroWeights['rating_adjusted']).sum()
+        summationTerm = itemRatings['weightedAdjustedRating'].sum()
 
         return Vbar_a + (k * summationTerm)
 
@@ -75,43 +79,67 @@ class Recommender(object):
     # Returns a dataframe containing userIds and pearson correlation
     # coefficients.  Non-zero values only.
     def _computePearsonCoefficients(self, userA, usersWhoVotedForItem):
-        # Subset of training data consisting of user A's votes.
+        # Inner function to compute each w(a, i)
+        def computePearsonCoefficient(group):
+            numerator = (group['normalizedRating_a']*group['normalizedRating_b']).sum()
+            denominator = math.sqrt(
+                ((group['normalizedRating_a']**2)*(group['normalizedRating_b']**2)).sum())
+
+            return pandas.Series({'r': numerator/denominator})
+
+        # Get user A's votes.
         subsetA = self.trainData[self.trainData['userId'] == userA]
         movies = subsetA['movieId'].unique()
 
-        # All votes that overlap with userA's votes
-        overlappingVotes = self.trainData[
+        # Compute (V_aj - Vbar_a)
+        Vbar_a = self.avgVotes[userA]
+        subsetA['normalizedRating'] = subsetA.apply(
+            lambda row: row['rating'] - Vbar_a,
+            axis=1,
+            raw=True)
+
+        # Compute Pearson Coefficients only for users who satisfy 
+        # the following conditions:
+        # 1 - The user has at least one movieId overlap with userA
+        # 2 - The user has voted for the current prediction item
+        # 3 - The user is not userA
+        subsetB = self.trainData[
             (self.trainData['movieId'].isin(movies)) &
+            (self.trainData['userId'].isin(usersWhoVotedForItem)) &
             (self.trainData['userId'] != userA)]
 
-        similarUsers = overlappingVotes['userId'].unique()
+        # Compute (V_ij - Vbar_i)
+        subsetB['normalizedRating'] = subsetB.apply(
+            lambda row: row['rating'] - self.avgVotes[row['userId']],
+            axis=1,
+            raw=True)
 
-        # The intersection between similarUsers and usersWhoVotedForItem
-        usersToCompare = numpy.intersect1d(usersWhoVotedForItem, similarUsers)
+        merged = pandas.merge(
+            subsetA,
+            subsetB,
+            how='inner',
+            on=['movieId'],
+            suffixes=('_a', '_b'))
 
-        # Get rows associated with userIds in usersToCompare
-        workingSet = self.trainData[
-            self.trainData['userId'].isin(usersToCompare)]
+        # Group subsetB by userIds
+        grouped = merged.groupby('userId')
 
-
-        return workingSet
-
-        # Users who have voted on the current prediction item
-        usersWhoVotedForItem = self.trainData[
-            (self.trainData['movieId'] == item) &
-            (self.trainData['userId'] != userA)]['userId'].unique()
+        # Compute pearson coefficient for each group
+        result = grouped.apply(computePearsonCoefficient)
+        # return nonzero results
+        return result[result['r'] != 0]
 
 
     def _computeMAE(self):
-        pass
+        return (self.testData['predictedRating'] - self.testData['rating']).abs().mean()
 
 
     def _computeRSME(self):
-        pass
+        return math.sqrt((self.testData['predictedRating'] - self.testData['rating'])**2.mean())
 
 
     def _computeNormalizer(self, nonZeroWeights):
-        return 1/nonZeroWeights['r'].abs().sum()
+        return 1/nonZeroWeights.abs().sum()
 
 
     # Helper to get the vote for user i on item j.

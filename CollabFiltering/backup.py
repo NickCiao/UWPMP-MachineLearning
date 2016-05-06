@@ -54,3 +54,13 @@
                 chosenR.append(r)
 
         return pandas.DataFrame({'userId': chosenUsers, 'r': chosenR})
+
+        
+        similarUsers = overlappingVotes['userId'].unique()
+
+        # The intersection between similarUsers and usersWhoVotedForItem
+        usersToCompare = numpy.intersect1d(usersWhoVotedForItem, similarUsers)
+
+        # Get rows associated with userIds in usersToCompare
+        workingSet = self.trainData[
+            self.trainData['userId'].isin(usersToCompare)]
