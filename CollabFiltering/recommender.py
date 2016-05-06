@@ -67,9 +67,10 @@ class Recommender(object):
             (self.trainData['userId'].isin(nonZeroWeights.index.values)) &
             (self.trainData['movieId'] == item)]
 
-        itemRatings['weightedAdjustedRating'] = itemRatings.apply(
+        weightedAdjustedRating = itemRatings.apply(
             lambda row: nonZeroWeights[row['userId']]*row['rating'] - self.avgVotes[row['userId']],
             axis=1)
+        itemRatings = itemRatings.assign(weightedAdjustedRating=weightedAdjustedRating)
 
         summationTerm = itemRatings['weightedAdjustedRating'].sum()
 
@@ -82,10 +83,15 @@ class Recommender(object):
         # Inner function to compute each w(a, i)
         def computePearsonCoefficient(group):
             numerator = (group['normalizedRating_a']*group['normalizedRating_b']).sum()
-            denominator = math.sqrt(
-                ((group['normalizedRating_a']**2)*(group['normalizedRating_b']**2)).sum())
+            denominator = math.sqrt((group['normalizedRating_a']**2).sum())*math.sqrt((group['normalizedRating_b']**2).sum())
+            
+            # Case where there is only one vote
+            if denominator == 0:
+                result = 0
+            else:
+                result = numerator/denominator
 
-            return pandas.Series({'r': numerator/denominator})
+            return pandas.Series({'r': result})
 
         # Get user A's votes.
         subsetA = self.trainData[self.trainData['userId'] == userA]
@@ -93,10 +99,13 @@ class Recommender(object):
 
         # Compute (V_aj - Vbar_a)
         Vbar_a = self.avgVotes[userA]
-        subsetA['normalizedRating'] = subsetA.apply(
+        normalizedRating = subsetA.apply(
             lambda row: row['rating'] - Vbar_a,
             axis=1,
             raw=True)
+
+        subsetA = subsetA.assign(normalizedRating=normalizedRating)
+
 
         # Compute Pearson Coefficients only for users who satisfy 
         # the following conditions:
@@ -109,10 +118,12 @@ class Recommender(object):
             (self.trainData['userId'] != userA)]
 
         # Compute (V_ij - Vbar_i)
-        subsetB['normalizedRating'] = subsetB.apply(
+        normalizedRating = subsetB.apply(
             lambda row: row['rating'] - self.avgVotes[row['userId']],
             axis=1,
             raw=True)
+
+        subsetB = subsetB.assign(normalizedRating=normalizedRating) 
 
         merged = pandas.merge(
             subsetA,
@@ -122,10 +133,12 @@ class Recommender(object):
             suffixes=('_a', '_b'))
 
         # Group subsetB by userIds
-        grouped = merged.groupby('userId')
+        grouped = merged.groupby('userId_b')
 
         # Compute pearson coefficient for each group
         result = grouped.apply(computePearsonCoefficient)
+
+        print(result)
         # return nonzero results
         return result[result['r'] != 0]
 
@@ -135,7 +148,7 @@ class Recommender(object):
 
 
     def _computeRSME(self):
-        return math.sqrt((self.testData['predictedRating'] - self.testData['rating'])**2.mean())
+        return math.sqrt(((self.testData['predictedRating'] - self.testData['rating'])**2).mean())
 
 
     def _computeNormalizer(self, nonZeroWeights):
