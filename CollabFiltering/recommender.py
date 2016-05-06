@@ -62,10 +62,14 @@ class Recommender(object):
         # Users who have voted on the current prediction item
         usersWhoVotedForItem = itemVotes['userId'].unique()
 
-
         nonZeroWeights = self._computePearsonCoefficients(
             user,
             usersWhoVotedForItem)
+
+        # This is a hack.  It's possible to get no non-zero weights.
+        # Should have a better way of handling this
+        if len(nonZeroWeights) == 0:
+            return Vbar_a
 
         k = self._computeNormalizer(nonZeroWeights)
 
@@ -121,11 +125,15 @@ class Recommender(object):
             (self.trainData['userId'].isin(usersWhoVotedForItem)) &
             (self.trainData['userId'] != userA)]
 
+        #print(subsetB)
+
         # Compute (V_ij - Vbar_i)
         normalizedRating = subsetB.apply(
             lambda row: row['rating'] - self.avgVotes[numpy.int64(row['userId'])],
             axis=1,
             raw=True)
+
+        #print(normalizedRating)
 
         subsetB = subsetB.assign(normalizedRating=normalizedRating)
 
@@ -141,7 +149,7 @@ class Recommender(object):
 
         # Compute pearson coefficient for each group
         result = grouped.apply(computePearsonCoefficient)
-
+        #print(result)
         return result[result != 0]
 
 
