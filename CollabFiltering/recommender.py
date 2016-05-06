@@ -34,8 +34,13 @@ class Recommender(object):
             # Set the value
             self.testData.set_value(i, 'predictedRating', predictedVote)
 
+            print("userId: {0:n}, movieId: {1:n}, predicted rating: {2:n}, actual rating: {3:n}".format(
+                row['userId'][i],
+                row['movieId'][i],
+                predictedVote,
+                row['rating'][i]))
             # Print some kind of progress indicator
-            print("{0:8.3f}%".format(i/len(testD)))
+            print("{0:10.6f}%".format(i/len(self.testData)))
 
         # Calculate Mean Absolute Error
         print(self._computeMAE())
@@ -46,7 +51,7 @@ class Recommender(object):
 
     # Predicts the vote of user A on Item j.
     def _predictVote(self, user, item):
-        # Compute the average vote for the active user.
+        # Retrieve the average vote for the active user.
         Vbar_a = self.avgVotes[user]
 
         # Get all the rows corresponding to votes for this item.
@@ -56,6 +61,7 @@ class Recommender(object):
 
         # Users who have voted on the current prediction item
         usersWhoVotedForItem = itemVotes['userId'].unique()
+
 
         nonZeroWeights = self._computePearsonCoefficients(
             user,
@@ -68,7 +74,7 @@ class Recommender(object):
             (self.trainData['movieId'] == item)]
 
         weightedAdjustedRating = itemRatings.apply(
-            lambda row: nonZeroWeights[row['userId']]*row['rating'] - self.avgVotes[row['userId']],
+            lambda row: nonZeroWeights[numpy.int64(row['userId'])]*(row['rating'] - self.avgVotes[numpy.int64(row['userId'])]),
             axis=1)
         itemRatings = itemRatings.assign(weightedAdjustedRating=weightedAdjustedRating)
 
@@ -84,14 +90,13 @@ class Recommender(object):
         def computePearsonCoefficient(group):
             numerator = (group['normalizedRating_a']*group['normalizedRating_b']).sum()
             denominator = math.sqrt((group['normalizedRating_a']**2).sum())*math.sqrt((group['normalizedRating_b']**2).sum())
-            
+
             # Case where there is only one vote
             if denominator == 0:
                 result = 0
             else:
                 result = numerator/denominator
-
-            return pandas.Series({'r': result})
+            return result
 
         # Get user A's votes.
         subsetA = self.trainData[self.trainData['userId'] == userA]
@@ -106,8 +111,7 @@ class Recommender(object):
 
         subsetA = subsetA.assign(normalizedRating=normalizedRating)
 
-
-        # Compute Pearson Coefficients only for users who satisfy 
+        # Compute Pearson Coefficients only for users who satisfy
         # the following conditions:
         # 1 - The user has at least one movieId overlap with userA
         # 2 - The user has voted for the current prediction item
@@ -119,11 +123,11 @@ class Recommender(object):
 
         # Compute (V_ij - Vbar_i)
         normalizedRating = subsetB.apply(
-            lambda row: row['rating'] - self.avgVotes[row['userId']],
+            lambda row: row['rating'] - self.avgVotes[numpy.int64(row['userId'])],
             axis=1,
             raw=True)
 
-        subsetB = subsetB.assign(normalizedRating=normalizedRating) 
+        subsetB = subsetB.assign(normalizedRating=normalizedRating)
 
         merged = pandas.merge(
             subsetA,
@@ -138,9 +142,7 @@ class Recommender(object):
         # Compute pearson coefficient for each group
         result = grouped.apply(computePearsonCoefficient)
 
-        print(result)
-        # return nonzero results
-        return result[result['r'] != 0]
+        return result[result != 0]
 
 
     def _computeMAE(self):
@@ -152,7 +154,11 @@ class Recommender(object):
 
 
     def _computeNormalizer(self, nonZeroWeights):
-        return 1/nonZeroWeights.abs().sum()
+        val = nonZeroWeights.abs().sum()
+        if val == 0:
+            return 0
+        else:
+            return 1/nonZeroWeights.abs().sum()
 
 
     # Helper to get the vote for user i on item j.
