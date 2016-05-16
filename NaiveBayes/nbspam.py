@@ -1,6 +1,7 @@
 import pandas
 import numpy
 import math
+import util
 
 def createDF(fileName):
     with open(fileName) as f:
@@ -54,13 +55,15 @@ class NaiveBayesSpamFilter(object):
             })
 
             # Print the progress
-            progressCounter += 1
-            print("{0:10.6f}%".format(progressCounter/len(Ids)))
+            util.printProgress(progressCounter, len(Ids))
 
         resultDF = pandas.DataFrame(result)
 
-        print(resultDF)
         # Calculate accuracy
+        countCorrect = len(resultDF[
+            resultDF['ActualClass'] == resultDF['PredictedClass']])
+        totalRows = len(resultDF)
+        print("Accuracy: {0}".format(countCorrect/totalRows))
 
     def predict(self, example):
         pSpam = self._computeP("spam", example)
@@ -81,11 +84,11 @@ class NaiveBayesSpamFilter(object):
             # Fetch the value from our pre-computed probabilities
             value = self.probabilities[
                 (self.probabilities['Word'] == row['Word']) &
-                (self.probabilities['Class'] == "spam")]
+                (self.probabilities['Class'] == v)]
 
             # Warning!
             if len(value) > 1:
-                print(">1 instance for p({0}|{1})".format(row['Word'], "spam"))
+                print(">1 instance for p({0}|{1})".format(row['Word'], v))
 
             logP = math.log(float(value['P']))
             p = p * logP
@@ -120,7 +123,7 @@ class NaiveBayesSpamFilter(object):
 
             # Print the progress
             progressCounter += 1
-            print("{0:10.3f}%".format(progressCounter/len(uniquePairs)))
+            util.printProgress(progressCounter, len(uniquePairs))
 
         return pandas.DataFrame(result)
 
