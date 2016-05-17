@@ -98,7 +98,7 @@ class NaiveBayesSpamFilter(object):
 
             if len(value) == 0:
                 val = math.log(
-                    1/(self.wordCountsByClass[v] + self.sizeOfVocab), 10)
+                    1/(self.wordCountsByClass[v] + self.sizeOfVocab))
             else:
                 val = float(value.values[0])
 
@@ -131,7 +131,7 @@ class NaiveBayesSpamFilter(object):
             result.append({
                 'Class':Class,
                 'Word':Word,
-                'P': math.log(likelihood, 10)
+                'P': math.log(likelihood)
             })
 
             # Print the progress
