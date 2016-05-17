@@ -104,7 +104,7 @@ class NaiveBayesSpamFilter(object):
 
             p += (val*row['Count'])
 
-        return p * self.pV[v]
+        return p + math.log(self.pV[v])
 
 
     def _precomputeProbabilities(self):
