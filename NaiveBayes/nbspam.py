@@ -70,9 +70,6 @@ class NaiveBayesSpamFilter(object):
 
         resultDF = pandas.DataFrame(result)
 
-        resultDF.to_csv("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
-    "/NaiveBayes/Data/resultDF.txt")
-
         # Calculate accuracy
         countCorrect = len(resultDF[
             resultDF['ActualClass'] == resultDF['PredictedClass']])
@@ -100,16 +97,12 @@ class NaiveBayesSpamFilter(object):
                 (self.probabilities['Class'] == v)]['P']
 
             if len(value) == 0:
-                val = float(1/(self.wordCountsByClass[v] + self.sizeOfVocab))
+                val = math.log(
+                    1/(self.wordCountsByClass[v] + self.sizeOfVocab), 10)
             else:
                 val = float(value.values[0])
 
-            # Warning!
-            if len(value) > 1:
-                print(">1 instance for p({0}|{1})".format(word, v))
-
-            logP = math.log(val, 10)
-            p += logP
+            p += (val*row['Count'])
 
         return p * self.pV[v]
 
@@ -133,11 +126,12 @@ class NaiveBayesSpamFilter(object):
 
             df = self.trainData[self.trainData['Class'] == Class]
             total = df['Count'].sum()
+            likelihood = (float(count) + 1)/(float(total) + self.sizeOfVocab)
 
             result.append({
                 'Class':Class,
                 'Word':Word,
-                'P': (float(count) + 1)/(float(total) + self.sizeOfVocab)
+                'P': math.log(likelihood, 10)
             })
 
             # Print the progress

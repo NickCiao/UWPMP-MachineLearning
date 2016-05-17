@@ -34,3 +34,13 @@ def printProgress (iteration, total, prefix = '', suffix = '', decimals = 2, bar
 
 # Sample Output
 # Progress: [#############################################-----] 90.0% Complete
+
+
+"""
+    Computes the accuracy
+"""
+def calculateAccuracy(dataFrame, actualCol, predictedCol):
+    countCorrect = len(dataFrame[
+        dataFrame[actualCol] == dataFrame[predictedCol]])
+    total = len(dataFrame)
+    print("Accuracy: {0}".format(countCorrect/totalRows))
