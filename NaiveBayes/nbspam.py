@@ -34,30 +34,44 @@ class NaiveBayesSpamFilter(object):
         self.trainData = trainingData
         self.pV = trainingData['Class'].value_counts(normalize=True)
         self.sizeOfVocab = len(trainingData['Word'].unique())
+        self.wordCountsByClass = trainingData.groupby(['Class']).sum()['Count']
+    #     self.probabilities = pandas.read_csv("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
+    # "/NaiveBayes/Data/selfProbabilities.txt")
         self.probabilities = self._precomputeProbabilities()
 
     def execute(self, testData):
         self.testData = testData
-
         result = []
         Ids = testData['Id'].unique()
         progressCounter = 0
 
+        print("Predicting...")
         # Make a prediction for each emailId in the test set
         for emailId in Ids:
-            actualClass = testData['Class'].values[0]
-
             example = testData[testData['Id'] == emailId]
-            predictedClass = self.predict(example)
+            actualClass = example['Class'].values[0]
+            predicted = self.predict(example)
+
+            if predicted['pHam'] > predicted['pSpam']:
+                predictedClass = "ham"
+            else:
+                predictedClass = "spam"
+
             result.append({
                 'ActualClass':actualClass,
-                'PredictedClass':predictedClass
+                'PredictedClass':predictedClass,
+                'pHam':predicted['pHam'],
+                'pSpam':predicted['pSpam']
             })
 
             # Print the progress
+            progressCounter += 1
             util.printProgress(progressCounter, len(Ids))
 
         resultDF = pandas.DataFrame(result)
+
+        resultDF.to_csv("C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
+    "/NaiveBayes/Data/resultDF.txt")
 
         # Calculate accuracy
         countCorrect = len(resultDF[
@@ -69,34 +83,39 @@ class NaiveBayesSpamFilter(object):
         pSpam = self._computeP("spam", example)
         pHam = self._computeP("ham", example)
 
-        if pHam > pSpam:
-            return "ham"
-        else:
-            return "spam"
+        return {"pHam":pHam, "pSpam":pSpam}
 
 
     def _computeP(self, v, example):
         view = self.probabilities[self.probabilities['Class'] == v]
-        valid = example['Word'].isin(view['Word'])
-        p = 1
+        # valid = example[example['Word'].isin(view['Word'])]
+        valid = example
+        p = 0
 
-        for index, row in example[valid].iterrows():
+        for index, row in valid.iterrows():
+            word = row['Word']
             # Fetch the value from our pre-computed probabilities
             value = self.probabilities[
-                (self.probabilities['Word'] == row['Word']) &
-                (self.probabilities['Class'] == v)]
+                (self.probabilities['Word'] == word) &
+                (self.probabilities['Class'] == v)]['P']
+
+            if len(value) == 0:
+                val = float(1/(self.wordCountsByClass[v] + self.sizeOfVocab))
+            else:
+                val = float(value.values[0])
 
             # Warning!
             if len(value) > 1:
-                print(">1 instance for p({0}|{1})".format(row['Word'], v))
+                print(">1 instance for p({0}|{1})".format(word, v))
 
-            logP = math.log(float(value['P']))
-            p = p * logP
+            logP = math.log(val, 10)
+            p += logP
 
         return p * self.pV[v]
 
 
     def _precomputeProbabilities(self):
+        print("Pre-Computing likelihoods...")
         result = []
         progressCounter = 0
 
@@ -118,7 +137,7 @@ class NaiveBayesSpamFilter(object):
             result.append({
                 'Class':Class,
                 'Word':Word,
-                'P': (count + 1)/(total + self.sizeOfVocab)
+                'P': (float(count) + 1)/(float(total) + self.sizeOfVocab)
             })
 
             # Print the progress

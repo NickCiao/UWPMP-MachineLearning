@@ -20,17 +20,17 @@ def printProgress (iteration, total, prefix = '', suffix = '', decimals = 2, bar
 # Sample Usage
 #
 
-    # items = ["a", "b", "c", "d", "e"]
-    # i     = 0
-    # l     = len(items)
+# items = ["a", "b", "c", "d", "e"]
+# i     = 0
+# l     = len(items)
 
-    # # Initial call to print 0% progress
-    # printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', barLength = 50)
-    # for item in items:
-    #     # Do stuff...
-    #     # Update Progress Bar
-    #     i += 1
-    #     printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', barLength = 50)
+# # Initial call to print 0% progress
+# printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', barLength = 50)
+# for item in items:
+#     # Do stuff...
+#     # Update Progress Bar
+#     i += 1
+#     printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', barLength = 50)
 
-    # Sample Output
-    # Progress: [#############################################-----] 90.0% Complete
+# Sample Output
+# Progress: [#############################################-----] 90.0% Complete
