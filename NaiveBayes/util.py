@@ -43,4 +43,6 @@ def calculateAccuracy(dataFrame, actualCol, predictedCol):
     countCorrect = len(dataFrame[
         dataFrame[actualCol] == dataFrame[predictedCol]])
     total = len(dataFrame)
+    print("Correct: {0}".format(countCorrect))
+    print("Incorrect: {0}".format(total - countCorrect))
     print("Accuracy: {0}".format(countCorrect/totalRows))
