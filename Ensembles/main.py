@@ -1,8 +1,10 @@
 import numpy
 import pandas
 import sys
-# Import my ID3 implementation
-from ID3 import *
+from sklearn import tree
+from sklearn.ensemble import BaggingClassifier
+from scipy import stats
+import bvd
 
 columns = [
     "PregnancyCount",
@@ -23,10 +25,6 @@ trainD = pandas.read_csv(
     names=columns)
 print("Training data loaded!")
 
-
-decisionTree = DecisionTree(trainD, 'Class')
-
-
 testD = pandas.read_csv(
     "C:/Users/Nicholas/Documents/Repos/UWPMP-MachineLearning"
     "/Ensembles/Data/pima-indians-diabetes.test",
@@ -35,8 +33,28 @@ testD = pandas.read_csv(
     names=columns)
 print("Test data loaded!")
 
+numOfEstimators = 50
 
-print("Predicting...")
-decisionTree.predict(testD)
-# if __name__ == "__main__":
-# do stuff
+# Create an ensemble of decision trees
+dTree = tree.DecisionTreeClassifier(criterion='entropy')
+bagging = BaggingClassifier(
+    dTree,
+    n_estimators=numOfEstimators,
+    max_samples=len(trainD),
+    bootstrap=True)
+
+xDF = trainD.drop('Class', 1, inplace=False)
+yDF = trainD['Class']
+
+# Train
+bagging.fit(xDF.values, yDF.values)
+
+# Predict
+tx = testD.drop('Class', 1, inplace=False)
+preds = bagging.predict_proba(tx.values)
+
+# Calculate bias-variance
+ty = testD['Class']
+bvd.biasVarZeroOne(ty.values, preds, numOfEstimators)
+
+
